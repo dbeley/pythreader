@@ -4,12 +4,38 @@ import datetime
 import argparse
 import tweepy
 import os
+import urllib.request
+from .imgviewer import show_image
+
 
 logger = logging.getLogger()
 config = configparser.ConfigParser()
 config.read("config.ini")
 BEGIN_TIME = datetime.datetime.now()
 ROWS, COLUMNS = os.popen("stty size", "r").read().split()
+
+
+def get_thread(twitter, url):
+    status = twitter.get_status(url.split("/")[-1], tweet_mode="extended")
+    userid = status.author.id
+    yield status
+
+    while True:
+        found = False
+        statusid = status.id
+        curs = tweepy.Cursor(
+            twitter.user_timeline,
+            user_id=userid,
+            since_id=statusid,
+            tweet_mode="extended",
+            count=100,
+        ).items()
+        for index, status in enumerate(curs, 0):
+            if status.in_reply_to_status_id == statusid:
+                yield status
+                found = True
+        if not found:
+            break
 
 
 def twitterconnect():
@@ -26,36 +52,25 @@ def twitterconnect():
 def main():
     args = parse_args()
     twitter = twitterconnect()
-    list_status = []
 
     if not args.url:
         logger.error("Use the -u flag to specify an url. Exiting.")
         exit()
     else:
         url = args.url
-    status = twitter.get_status(url.split("/")[-1], tweet_mode="extended")
-    userid = status.author.id
-    print(status.full_text)
-    list_status.append(status)
 
-    while True:
-        found = False
-        statusid = status.id
-        curs = tweepy.Cursor(
-            twitter.user_timeline,
-            user_id=userid,
-            since_id=statusid,
-            tweet_mode="extended",
-            count=100,
-        ).items()
-        for index, status in enumerate(curs, 0):
-            if status.in_reply_to_status_id == statusid:
-                print(f"{'-' * int(COLUMNS)}")
-                print(status.full_text)
-                found = True
-                list_status.append(status)
-        if not found:
-            break
+    for status in get_thread(twitter, url):
+        print(f"{'-' * int(COLUMNS)}")
+        # Display images if available
+        if hasattr(status, "extended_entities"):
+            if "media" in status.extended_entities:
+                for media in status.extended_entities["media"]:
+                    urllib.request.urlretrieve(
+                        media["media_url"], "/tmp/image.png"
+                    )
+                    show_image("/tmp/image.png")
+
+        print(status.full_text)
 
 
 def parse_args():
