@@ -62,13 +62,14 @@ def main():
     for status in get_thread(twitter, url):
         print(f"{'-' * int(COLUMNS)}")
         # Display images if available
-        if hasattr(status, "extended_entities"):
-            if "media" in status.extended_entities:
-                for media in status.extended_entities["media"]:
-                    urllib.request.urlretrieve(
-                        media["media_url"], "/tmp/image.png"
-                    )
-                    show_image("/tmp/image.png")
+        if args.display_images:
+            if hasattr(status, "extended_entities"):
+                if "media" in status.extended_entities:
+                    for media in status.extended_entities["media"]:
+                        urllib.request.urlretrieve(
+                            media["media_url"], "/tmp/image.png"
+                        )
+                        show_image("/tmp/image.png")
 
         print(status.full_text)
 
@@ -86,6 +87,14 @@ def parse_args():
         default=logging.INFO,
     )
     parser.add_argument("-u", "--url", help="Tweet URL.", type=str)
+    parser.add_argument(
+        "-i",
+        "--display_images",
+        help="Display images if available.",
+        type=bool,
+        dest="display_images",
+    )
+    parser.set_defaults(display_images=False)
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
     return args
