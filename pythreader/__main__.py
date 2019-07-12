@@ -91,8 +91,8 @@ def parse_args():
         "-i",
         "--display_images",
         help="Display images if available.",
-        type=bool,
         dest="display_images",
+        action="store_true",
     )
     parser.set_defaults(display_images=False)
     args = parser.parse_args()
